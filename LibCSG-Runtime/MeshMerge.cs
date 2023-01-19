@@ -81,6 +81,11 @@ public class MeshMerge{
 		Dictionary<Vector3, int> snap_cache;
 
         /// <summary>
+        /// Instance variable <c>scale_a</c> represents the scale of the brush A used in the operation.
+        /// </summary>
+		public Vector3 scale_a;
+
+        /// <summary>
         /// This class is a comparer to sort a list with an id and a FaceBVH along the axis X
         /// </summary>
         public class FaceBVHCmpX : IComparer {
@@ -255,9 +260,8 @@ public class MeshMerge{
             };
             Vector3 face_center = (face_points[0] + face_points[1] + face_points[2]) / 3.0f;
             Vector3 face_normal = new PlaneCSG(face_points[0], face_points[1], face_points[2]).normal;
-            unsafe{
 
-            int* stack =  stackalloc int[max_depth];
+            int[] stack =  new int[max_depth];
  
 
             List<float> intersectionsA = new List<float>();
@@ -359,7 +363,6 @@ public class MeshMerge{
             // Inside if face normal intersects other faces an odd number of times.
             int res = (intersectionsA.Count + intersectionsB.Count) & 1;
             return res != 0;
-            }
         }
 
         /// <summary>
@@ -424,8 +427,8 @@ public class MeshMerge{
             AABB intersection_aabb = aabb_a.intersection(aabb_b);
             
             // Check if shape AABBs intersect.
-            if (intersection_aabb.get_size() == Vector3.zero) {
-                return;
+            if (operation==Operation.OPERATION_INTERSECTION && intersection_aabb.get_size() == Vector3.zero) {
+                //return;
             }
 
             (int,FaceBVH)[] bvhtrvec_a = new (int,FaceBVH)[0];
@@ -605,7 +608,7 @@ public class MeshMerge{
                     indices[i] = snap_cache[vk];
                 } else {
                     indices[i] = this.points.Count;
-                    this.points.Add(points[i]);
+                    this.points.Add(Vector3.Scale(points[i],scale_a));
                     snap_cache.Add(vk, indices[i]);
                 }
             }

@@ -60,6 +60,7 @@ public class CSGBrushOperation
         // Add faces to MeshMerge.
         MeshMerge mesh_merge = new MeshMerge(brush_a.faces.Length + build2DFaceCollection.build2DFacesA.Count,brush_b.faces.Length + build2DFaceCollection.build2DFacesB.Count);
         mesh_merge.vertex_snap = tolerance;
+        mesh_merge.scale_a = brush_a.obj.transform.localScale;
 
         for (int i = 0; i < brush_a.faces.Length; i++) {
             if (build2DFaceCollection.build2DFacesA.ContainsKey(i)) {
@@ -68,7 +69,7 @@ public class CSGBrushOperation
                 Vector3[] points = new Vector3[3];
                 Vector2[] uvs = new Vector2[3];
                 for (int j = 0; j < 3; j++) {
-                    points[j] = brush_a.obj.transform.TransformPoint(brush_a.faces[i].vertices[j]);
+                    points[j] = brush_a.faces[i].vertices[j];
                     uvs[j] = brush_a.faces[i].uvs[j];
                 }
                 mesh_merge.add_face(points, uvs, false);
@@ -82,7 +83,7 @@ public class CSGBrushOperation
                 Vector3[] points = new Vector3[3];
                 Vector2[] uvs = new Vector2[3];
                 for (int j = 0; j < 3; j++) {
-                    points[j] = brush_b.obj.transform.TransformPoint(brush_b.faces[i].vertices[j]);
+                    points[j] = brush_a.obj.transform.InverseTransformPoint(brush_b.obj.transform.TransformPoint(brush_b.faces[i].vertices[j]));
                     uvs[j] = brush_b.faces[i].uvs[j];
                 }
                 mesh_merge.add_face(points, uvs, true);
@@ -91,6 +92,8 @@ public class CSGBrushOperation
         
         Array.Clear(merged_brush.faces, 0 , merged_brush.faces.Length);
         mesh_merge.do_operation(operation, ref merged_brush);
+        mesh_merge=null;
+        System.GC.Collect();
     }
 
     
@@ -105,15 +108,15 @@ public class CSGBrushOperation
     /// <param><c>p_vertex_snap</c> represents the tolerance used.</param>
     void update_faces(ref CSGBrush brush_a, int face_idx_a, ref CSGBrush brush_b, int face_idx_b, ref Build2DFaceCollection collection, float vertex_snap) {
         Vector3[] vertices_a = {
-            brush_a.obj.transform.TransformPoint(brush_a.faces[face_idx_a].vertices[0]),
-            brush_a.obj.transform.TransformPoint(brush_a.faces[face_idx_a].vertices[1]),
-            brush_a.obj.transform.TransformPoint(brush_a.faces[face_idx_a].vertices[2])
+            brush_a.faces[face_idx_a].vertices[0],
+            brush_a.faces[face_idx_a].vertices[1],
+            brush_a.faces[face_idx_a].vertices[2]
         };
 
         Vector3[] vertices_b = {
-            brush_b.obj.transform.TransformPoint(brush_b.faces[face_idx_b].vertices[0]),
-            brush_b.obj.transform.TransformPoint(brush_b.faces[face_idx_b].vertices[1]),
-            brush_b.obj.transform.TransformPoint(brush_b.faces[face_idx_b].vertices[2])
+            brush_a.obj.transform.InverseTransformPoint(brush_b.obj.transform.TransformPoint(brush_b.faces[face_idx_b].vertices[0])),
+            brush_a.obj.transform.InverseTransformPoint(brush_b.obj.transform.TransformPoint(brush_b.faces[face_idx_b].vertices[1])),
+            brush_a.obj.transform.InverseTransformPoint(brush_b.obj.transform.TransformPoint(brush_b.faces[face_idx_b].vertices[2]))
         };
 
         // Don't use degenerate faces.
@@ -222,10 +225,10 @@ public class CSGBrushOperation
         {
             collection.build2DFacesA.Add(face_idx_a,new Build2DFaces(brush_a, face_idx_a));
         }
-        collection.build2DFacesA[face_idx_a].insert(brush_b, face_idx_b);
+        collection.build2DFacesA[face_idx_a].insert(brush_b, face_idx_b, brush_a);
 
         if (!collection.build2DFacesB.ContainsKey(face_idx_b)) {
-            collection.build2DFacesB.Add(face_idx_b, new Build2DFaces(brush_b, face_idx_b));
+            collection.build2DFacesB.Add(face_idx_b, new Build2DFaces(brush_b, face_idx_b, brush_a));
         }
         collection.build2DFacesB[face_idx_b].insert(brush_a, face_idx_a);
     }

@@ -329,16 +329,16 @@ public class CSGBrush
     public void build_from_mesh(Mesh mesh) {
         Array.Clear(faces,0,faces.Length);
 
-        Array.Resize(ref faces,mesh.vertices.Length / 3);
+        Array.Resize(ref faces,mesh.triangles.Length / 3);
 
         for (int i = 0; i < faces.Length; i++) {
             Face new_face = new Face();
             new_face.vertices = new List<Vector3>(3);
-            new_face.vertices.Add(mesh.vertices[i * 3 + 2]);
-            new_face.vertices.Add(mesh.vertices[i * 3 + 1]);
-            new_face.vertices.Add(mesh.vertices[i * 3 + 0]);
+            new_face.vertices.Add(mesh.vertices[mesh.triangles[i * 3 + 2]]);
+            new_face.vertices.Add(mesh.vertices[mesh.triangles[i * 3 + 1]]);
+            new_face.vertices.Add(mesh.vertices[mesh.triangles[i * 3 + 0]]);
             if(mesh.uv.Length!=0){
-                new_face.uvs = new Vector2[3]{mesh.uv[i * 3 + 2], mesh.uv[i * 3 + 1], mesh.uv[i * 3 + 0]};
+                new_face.uvs = new Vector2[3]{mesh.uv[mesh.triangles[i * 3 + 2]], mesh.uv[mesh.triangles[i * 3 + 1]], mesh.uv[mesh.triangles[i * 3 + 0]]};
             }
             else{
                 new_face.uvs = new Vector2[3]{new Vector2(), new Vector2(), new Vector2()};
@@ -363,12 +363,16 @@ public class CSGBrush
     /// <summary>
     /// This method get the mesh used in the Brush.
     /// </summary>
+    /// <param><c>m</c> If you don't want create another mesh you can give your mesh.</param>
     /// <returns>
     /// Return the Mesh used in the Brush.
     /// </returns>
-    public Mesh getMesh(){
-        Mesh m = new Mesh();
+    public Mesh getMesh(Mesh m = null){
+        if(m==null){
+            m = new Mesh();
+        }
         Vector3[] vert = new Vector3[faces.Length*3];
+        Vector2[] uv = new Vector2[faces.Length*3];
 		int[] triangles = new int[faces.Length*3];
         for (int i = 0; i < faces.Length; i++) {
             vert[3 * i + 2] = faces[i].vertices[0];
@@ -377,9 +381,13 @@ public class CSGBrush
             triangles[3 * i] = 3 * i;
             triangles[3 * i + 1] = 3 * i + 1;
             triangles[3 * i + 2] = 3 * i + 2;
+            uv[3 * i + 2] = faces[i].uvs[0];
+            uv[3 * i + 1] = faces[i].uvs[1];
+            uv[3 * i] = faces[i].uvs[2];
         }
         m.vertices = vert;
         m.triangles = triangles;
+        m.uv = uv;
         m.RecalculateNormals();
         return m;
     }

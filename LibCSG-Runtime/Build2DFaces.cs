@@ -216,13 +216,52 @@ namespace LibCSG{
         /// This constructor initializes a new Build2DFaces with a CSGBrush, an id to get a face in the CSGBrush.
         /// </summary>
         /// <param><c>brush</c> is a brush.</param>
-        /// <param><c>face_idx</c> is a the id of a face in the p_brush.</param>
+        /// <param><c>face_idx</c> is a the id of a face in the brush.</param>
         public Build2DFaces(CSGBrush brush, int face_idx) {
             // Convert 3D vertex points to 2D.
             Vector3[] points_3D = {
-                brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[0]),
-                brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[1]),
-                brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[2])
+                brush.faces[face_idx].vertices[0],
+                brush.faces[face_idx].vertices[1],
+                brush.faces[face_idx].vertices[2]
+            };
+            plane = new PlaneCSG(points_3D[0], points_3D[1], points_3D[2]);
+            to_3D = new Transform_to_2DFace();
+            to_3D.Set_position(points_3D[0]);
+            to_3D.basis_set_column(2, plane.normal);
+            Vector3 temp = points_3D[1] - points_3D[2];
+            temp /= temp.magnitude;
+            to_3D.basis_set_column(0, temp);
+            temp = Vector3.Cross(to_3D.basis_get_column(0), to_3D.basis_get_column(2));
+            temp /= temp.magnitude;
+            to_3D.basis_set_column(1, temp);
+            to_2D = to_3D.affine_inverse();
+
+            Face2D face;
+            face.vertex_idx = new int[3];
+            for (int i = 0; i < 3; i++) {
+                Vertex2D vertex;
+                Vector3 point_2D = to_2D.xform(points_3D[i]);
+                vertex.point.x = point_2D.x;
+                vertex.point.y = point_2D.y;
+                vertex.uv = brush.faces[face_idx].uvs[i];
+                vertices.Add(vertex);
+                face.vertex_idx[i] = i;
+            }
+            faces.Add(face);
+        }
+       
+        /// <summary>
+        /// This constructor initializes a new Build2DFaces with a CSGBrush, an id to get a face in the CSGBrush. The Build2DFaces is create in the Transform of brush_a
+        /// </summary>
+        /// <param><c>brush</c> is a brush.</param>
+        /// <param><c>face_idx</c> is a the id of a face in the brush.</param>
+        /// <param><c>brush_a</c> is a the brush containing the Transform you want used.</param>
+        public Build2DFaces(CSGBrush brush, int face_idx, CSGBrush brush_a) {
+            // Convert 3D vertex points to 2D.
+            Vector3[] points_3D = {
+                brush_a.obj.transform.InverseTransformPoint(brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[0])),
+                brush_a.obj.transform.InverseTransformPoint(brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[1])),
+                brush_a.obj.transform.InverseTransformPoint(brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[2]))
             };
             plane = new PlaneCSG(points_3D[0], points_3D[1], points_3D[2]);
             to_3D = new Transform_to_2DFace();
@@ -250,13 +289,12 @@ namespace LibCSG{
             faces.Add(face);
         }
 
-        
         /// <summary>
         /// This method check if the point is already in the vertice list and return the id of the vertex
         /// </summary>
         /// <param><c>point</c> is a point you want know if it is in the vertice list.</param>
         /// <returns>
-        /// Return the id in the vertice list corresponding to the p_point if p_point is not in the list the methode return -1.
+        /// Return the id in the vertice list corresponding to the point if point is not in the list the methode return -1.
         /// </returns>
         private int get_point_idx(Vector2 point) {
             for (int vertex_idx = 0; vertex_idx < vertices.Count; ++vertex_idx) {
@@ -753,12 +791,18 @@ namespace LibCSG{
         /// </summary>
         /// <param><c>brush</c> the Brush containing the face you want add.</param>
         /// <param><c>face_idx</c> the id of the face you want add.</param>
-        public void insert(CSGBrush brush, int face_idx) {
+        public void insert(CSGBrush brush, int face_idx, CSGBrush brush_a = null) {
             Vector2[] points_2D = new Vector2[3];
             int points_count = 0;
 
             for (int i = 0; i < 3; i++) {
-                Vector3 point_3D = brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[i]);
+                Vector3 point_3D;
+                if(brush_a==null){
+                    point_3D = brush.faces[face_idx].vertices[i];
+                }
+                else{
+                    point_3D = brush_a.obj.transform.InverseTransformPoint(brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[i]));
+                }
 
                 if (plane.has_point(point_3D, CSGBrush.CMP_EPSILON)) {
                     // Point is in the plane, add it.
@@ -767,7 +811,13 @@ namespace LibCSG{
                     points_2D[points_count++] = new Vector2(point_2D.x, point_2D.y);
 
                 } else {
-                    Vector3 next_point_3D = brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[(i + 1) % 3]);
+                    Vector3 next_point_3D;
+                    if(brush_a==null){
+                        next_point_3D = brush.faces[face_idx].vertices[(i + 1) % 3];
+                    }
+                    else{
+                        next_point_3D = brush_a.obj.transform.InverseTransformPoint(brush.obj.transform.TransformPoint(brush.faces[face_idx].vertices[(i + 1) % 3]));
+                    }
 
                     if (plane.has_point(next_point_3D, CSGBrush.CMP_EPSILON)) {
                         continue; // Next point is in plane, it will be added separately.
